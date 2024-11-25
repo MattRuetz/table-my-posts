@@ -2,7 +2,7 @@
 /*
 Plugin Name: My Custom Table Plugin
 Description: Displays posts in a customizable table format with selected fields
-Version: 1.1
+Version: 1.2
 Author: Your Name
 */
 
@@ -191,13 +191,39 @@ function mct_display_table($atts) {
     .mct-table tr:hover {
         background-color: #f2f2f2;
     }
+    
+    .mct-table th {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+    }
+    
+    .mct-table th::after {
+        content: '↕';
+        position: absolute;
+        right: 8px;
+        opacity: 0.3;
+    }
+    
+    .mct-table th.sort-asc::after {
+        content: '↑';
+        opacity: 1;
+    }
+    
+    .mct-table th.sort-desc::after {
+        content: '↓';
+        opacity: 1;
+    }
     </style>
 
     <table class="mct-table">
         <thead>
             <tr>
-                <?php foreach ($columns as $column): ?>
-                    <th><?php echo esc_html($column['header']); ?></th>
+                <?php foreach ($columns as $index => $column): ?>
+                    <th class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>"
+                        data-column="<?php echo esc_attr($index); ?>">
+                        <?php echo esc_html($column['header']); ?>
+                    </th>
                 <?php endforeach; ?>
             </tr>
         </thead>
@@ -205,7 +231,7 @@ function mct_display_table($atts) {
             <?php foreach ($posts as $post): ?>
                 <tr>
                     <?php foreach ($columns as $column): ?>
-                        <td>
+                        <td class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>">
                             <?php
                             switch ($column['type']) {
                                 case 'title':
@@ -242,6 +268,64 @@ function mct_display_table($atts) {
             <?php endforeach; ?>
         </tbody>
     </table>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tables = document.querySelectorAll('.mct-table');
+        
+        tables.forEach(table => {
+            const headers = table.querySelectorAll('th');
+            let currentSort = { column: null, direction: 'asc' };
+            
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.dataset.column;
+                    const tbody = table.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    
+                    // Reset all headers
+                    headers.forEach(h => {
+                        h.classList.remove('sort-asc', 'sort-desc');
+                    });
+                    
+                    // Determine sort direction
+                    if (currentSort.column === column) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.column = column;
+                        currentSort.direction = 'asc';
+                    }
+                    
+                    // Add sort indicator
+                    header.classList.add(`sort-${currentSort.direction}`);
+                    
+                    // Sort rows
+                    const sortedRows = rows.sort((a, b) => {
+                        const aValue = a.children[column].textContent.trim();
+                        const bValue = b.children[column].textContent.trim();
+                        
+                        // Check if values are numbers
+                        const aNum = parseFloat(aValue);
+                        const bNum = parseFloat(bValue);
+                        
+                        if (!isNaN(aNum) && !isNaN(bNum)) {
+                            return currentSort.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                        }
+                        
+                        // Sort as strings
+                        return currentSort.direction === 'asc' 
+                            ? aValue.localeCompare(bValue)
+                            : bValue.localeCompare(aValue);
+                    });
+                    
+                    // Clear and re-append sorted rows
+                    tbody.innerHTML = '';
+                    sortedRows.forEach(row => tbody.appendChild(row));
+                });
+            });
+        });
+    });
+    </script>
     <?php
     return ob_get_clean();
 }
