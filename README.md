@@ -1,4 +1,4 @@
-# My Custom Table Plugin
+# My Custom Table Plugin (Table My Posts)
 
 A WordPress plugin that creates customizable, sortable, and responsive tables from your posts and custom post types with Advanced Custom Fields (ACF) integration.
 
