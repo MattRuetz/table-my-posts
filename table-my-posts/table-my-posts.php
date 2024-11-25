@@ -2,7 +2,7 @@
 /*
 Plugin Name: My Custom Table Plugin
 Description: Displays posts in a customizable table format with selected fields
-Version: 1.2
+Version: 1.4
 Author: Your Name
 */
 
@@ -68,6 +68,11 @@ function mct_settings_page() {
                                             <option value="date" <?php selected($column['type'], 'date'); ?>>Date</option>
                                             <option value="acf" <?php selected($column['type'], 'acf'); ?>>ACF Field</option>
                                         </select>
+                                        <select name="mct_columns[<?php echo $index; ?>][align]">
+                                            <option value="left" <?php selected($column['align'] ?? 'left', 'left'); ?>>Left</option>
+                                            <option value="center" <?php selected($column['align'] ?? 'left', 'center'); ?>>Center</option>
+                                            <option value="right" <?php selected($column['align'] ?? 'left', 'right'); ?>>Right</option>
+                                        </select>
                                         <input type="text" name="mct_columns[<?php echo $index; ?>][acf_field]" 
                                                value="<?php echo esc_attr($column['acf_field'] ?? ''); ?>" placeholder="ACF Field Name">
                                         <label>
@@ -108,6 +113,11 @@ function mct_settings_page() {
                         <option value="content">Content</option>
                         <option value="date">Date</option>
                         <option value="acf">ACF Field</option>
+                    </select>
+                    <select name="mct_columns[${columnCount}][align]">
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
                     </select>
                     <input type="text" name="mct_columns[${columnCount}][acf_field]" placeholder="ACF Field Name">
                     <label>
@@ -214,14 +224,76 @@ function mct_display_table($atts) {
         content: '↓';
         opacity: 1;
     }
+    .mct-table .mct-align-left {
+        text-align: left;
+    }
+    .mct-table .mct-align-center {
+        text-align: center;
+    }
+    .mct-table .mct-align-right {
+        text-align: right;
+    }
+    
+    /* Mobile Responsive Styles */
+    @media screen and (max-width: 768px) {
+        .mct-table {
+            display: block;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            -ms-overflow-style: -ms-autohiding-scrollbar;
+        }
+        
+        /* Optional: Card view for very small screens */
+        @media screen and (max-width: 480px) {
+            .mct-table, .mct-table tbody, .mct-table tr, .mct-table td {
+                display: block;
+                width: 100%;
+            }
+            
+            .mct-table thead {
+                display: none;
+            }
+            
+            .mct-table tr {
+                margin-bottom: 1rem;
+                border: 1px solid #dee2e6;
+                padding: 0.5rem;
+            }
+            
+            .mct-table td {
+                text-align: right;
+                padding: 8px;
+                position: relative;
+                border-bottom: 1px solid #eee;
+            }
+            
+            .mct-table td:last-child {
+                border-bottom: none;
+            }
+            
+            .mct-table td::before {
+                content: attr(data-label);
+                float: left;
+                font-weight: bold;
+                text-transform: uppercase;
+                font-size: 0.85em;
+            }
+            
+            /* Override alignment classes for mobile */
+            .mct-table .mct-align-left,
+            .mct-table .mct-align-center,
+            .mct-table .mct-align-right {
+                text-align: right;
+            }
+        }
+    }
     </style>
 
     <table class="mct-table">
         <thead>
             <tr>
-                <?php foreach ($columns as $index => $column): ?>
-                    <th class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>"
-                        data-column="<?php echo esc_attr($index); ?>">
+                <?php foreach ($columns as $column): ?>
+                    <th class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>">
                         <?php echo esc_html($column['header']); ?>
                     </th>
                 <?php endforeach; ?>
@@ -231,7 +303,8 @@ function mct_display_table($atts) {
             <?php foreach ($posts as $post): ?>
                 <tr>
                     <?php foreach ($columns as $column): ?>
-                        <td class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>">
+                        <td class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>" 
+                            data-label="<?php echo esc_attr($column['header']); ?>">
                             <?php
                             switch ($column['type']) {
                                 case 'title':
@@ -277,9 +350,11 @@ function mct_display_table($atts) {
             const headers = table.querySelectorAll('th');
             let currentSort = { column: null, direction: 'asc' };
             
-            headers.forEach(header => {
+            headers.forEach((header, columnIndex) => {
+                // Store the column index as a data attribute
+                header.dataset.columnIndex = columnIndex;
+                
                 header.addEventListener('click', () => {
-                    const column = header.dataset.column;
                     const tbody = table.querySelector('tbody');
                     const rows = Array.from(tbody.querySelectorAll('tr'));
                     
@@ -289,10 +364,10 @@ function mct_display_table($atts) {
                     });
                     
                     // Determine sort direction
-                    if (currentSort.column === column) {
+                    if (currentSort.column === columnIndex) {
                         currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
                     } else {
-                        currentSort.column = column;
+                        currentSort.column = columnIndex;
                         currentSort.direction = 'asc';
                     }
                     
@@ -301,15 +376,32 @@ function mct_display_table($atts) {
                     
                     // Sort rows
                     const sortedRows = rows.sort((a, b) => {
-                        const aValue = a.children[column].textContent.trim();
-                        const bValue = b.children[column].textContent.trim();
+                        // Get cells for this column, handling both desktop and mobile layouts
+                        const aCell = a.querySelectorAll('td')[columnIndex];
+                        const bCell = b.querySelectorAll('td')[columnIndex];
+                        
+                        if (!aCell || !bCell) return 0;
+                        
+                        const aValue = aCell.textContent.trim();
+                        const bValue = bCell.textContent.trim();
+                        
+                        // Check if values are dates
+                        const aDate = new Date(aValue);
+                        const bDate = new Date(bValue);
+                        if (aDate instanceof Date && !isNaN(aDate) && 
+                            bDate instanceof Date && !isNaN(bDate)) {
+                            return currentSort.direction === 'asc' 
+                                ? aDate - bDate 
+                                : bDate - aDate;
+                        }
                         
                         // Check if values are numbers
                         const aNum = parseFloat(aValue);
                         const bNum = parseFloat(bValue);
-                        
                         if (!isNaN(aNum) && !isNaN(bNum)) {
-                            return currentSort.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                            return currentSort.direction === 'asc' 
+                                ? aNum - bNum 
+                                : bNum - aNum;
                         }
                         
                         // Sort as strings
