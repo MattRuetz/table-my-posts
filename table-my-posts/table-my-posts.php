@@ -2,7 +2,7 @@
 /*
 Plugin Name: My Custom Table Plugin
 Description: Displays posts in a customizable table format with selected fields
-Version: 1.4
+Version: 1.5
 Author: Your Name
 */
 
