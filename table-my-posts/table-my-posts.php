@@ -8,7 +8,8 @@ Author: Your Name
 
 // Add admin menu
 add_action('admin_menu', 'mct_add_admin_menu');
-function mct_add_admin_menu() {
+function mct_add_admin_menu()
+{
     add_menu_page(
         'Table Settings',
         'Table Settings',
@@ -21,27 +22,31 @@ function mct_add_admin_menu() {
 
 // Register settings
 add_action('admin_init', 'mct_register_settings');
-function mct_register_settings() {
+function mct_register_settings()
+{
     register_setting('mct_settings', 'mct_post_type');
     register_setting('mct_settings', 'mct_columns');
+    register_setting('mct_settings', 'mct_taxonomy');
+    register_setting('mct_settings', 'mct_taxonomy_term');
 }
 
 // Create settings page
-function mct_settings_page() {
+function mct_settings_page()
+{
     $post_types = get_post_types(['public' => true], 'objects');
     $saved_columns = get_option('mct_columns', []);
-    ?>
+?>
     <div class="wrap">
         <h2>Table Settings</h2>
         <form method="post" action="options.php">
             <?php settings_fields('mct_settings'); ?>
-            
+
             <table class="form-table">
                 <tr>
                     <th>Select Post Type:</th>
                     <td>
                         <select name="mct_post_type">
-                            <?php foreach($post_types as $post_type): ?>
+                            <?php foreach ($post_types as $post_type): ?>
                                 <option value="<?php echo esc_attr($post_type->name); ?>"
                                     <?php selected(get_option('mct_post_type'), $post_type->name); ?>>
                                     <?php echo esc_html($post_type->labels->singular_name); ?>
@@ -50,7 +55,54 @@ function mct_settings_page() {
                         </select>
                     </td>
                 </tr>
-                
+
+                <tr>
+                    <th>Filter by Taxonomy:</th>
+                    <td>
+                        <select name="mct_taxonomy" id="taxonomy-select">
+                            <option value="">None</option>
+                            <?php
+                            $taxonomies = get_taxonomies(['public' => true], 'objects');
+                            foreach ($taxonomies as $taxonomy) {
+                                $selected = selected(get_option('mct_taxonomy'), $taxonomy->name, false);
+                                echo sprintf(
+                                    '<option value="%s" %s>%s</option>',
+                                    esc_attr($taxonomy->name),
+                                    $selected,
+                                    esc_html($taxonomy->labels->singular_name)
+                                );
+                            }
+                            ?>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Taxonomy Term:</th>
+                    <td>
+                        <select name="mct_taxonomy_term" id="term-select">
+                            <option value="">Select Term</option>
+                            <?php
+                            $selected_taxonomy = get_option('mct_taxonomy');
+                            if ($selected_taxonomy) {
+                                $terms = get_terms([
+                                    'taxonomy' => $selected_taxonomy,
+                                    'hide_empty' => false,
+                                ]);
+                                foreach ($terms as $term) {
+                                    $selected = selected(get_option('mct_taxonomy_term'), $term->term_id, false);
+                                    echo sprintf(
+                                        '<option value="%s" %s>%s</option>',
+                                        esc_attr($term->term_id),
+                                        $selected,
+                                        esc_html($term->name)
+                                    );
+                                }
+                            }
+                            ?>
+                        </select>
+                    </td>
+                </tr>
+
                 <tr>
                     <th>Configure Columns:</th>
                     <td>
@@ -58,10 +110,10 @@ function mct_settings_page() {
                             <?php
                             if (!empty($saved_columns)) {
                                 foreach ($saved_columns as $index => $column) {
-                                    ?>
+                            ?>
                                     <div class="column-row">
-                                        <input type="text" name="mct_columns[<?php echo $index; ?>][header]" 
-                                               value="<?php echo esc_attr($column['header']); ?>" placeholder="Column Header">
+                                        <input type="text" name="mct_columns[<?php echo $index; ?>][header]"
+                                            value="<?php echo esc_attr($column['header']); ?>" placeholder="Column Header">
                                         <select name="mct_columns[<?php echo $index; ?>][type]">
                                             <option value="title" <?php selected($column['type'], 'title'); ?>>Title</option>
                                             <option value="content" <?php selected($column['type'], 'content'); ?>>Content</option>
@@ -73,20 +125,20 @@ function mct_settings_page() {
                                             <option value="center" <?php selected($column['align'] ?? 'left', 'center'); ?>>Center</option>
                                             <option value="right" <?php selected($column['align'] ?? 'left', 'right'); ?>>Right</option>
                                         </select>
-                                        <input type="text" name="mct_columns[<?php echo $index; ?>][acf_field]" 
-                                               value="<?php echo esc_attr($column['acf_field'] ?? ''); ?>" placeholder="ACF Field Name">
+                                        <input type="text" name="mct_columns[<?php echo $index; ?>][acf_field]"
+                                            value="<?php echo esc_attr($column['acf_field'] ?? ''); ?>" placeholder="ACF Field Name">
                                         <label>
-                                            <input type="checkbox" name="mct_columns[<?php echo $index; ?>][is_hyperlink]" 
-                                                   <?php checked(isset($column['is_hyperlink']) && $column['is_hyperlink']); ?>>
+                                            <input type="checkbox" name="mct_columns[<?php echo $index; ?>][is_hyperlink]"
+                                                <?php checked(isset($column['is_hyperlink']) && $column['is_hyperlink']); ?>>
                                             Is Hyperlink?
                                         </label>
-                                        <input type="text" name="mct_columns[<?php echo $index; ?>][url_field]" 
-                                               value="<?php echo esc_attr($column['url_field'] ?? ''); ?>" 
-                                               placeholder="URL ACF Field Name"
-                                               class="url-field" <?php echo (!isset($column['is_hyperlink']) || !$column['is_hyperlink']) ? 'style="display:none;"' : ''; ?>>
+                                        <input type="text" name="mct_columns[<?php echo $index; ?>][url_field]"
+                                            value="<?php echo esc_attr($column['url_field'] ?? ''); ?>"
+                                            placeholder="URL ACF Field Name"
+                                            class="url-field" <?php echo (!isset($column['is_hyperlink']) || !$column['is_hyperlink']) ? 'style="display:none;"' : ''; ?>>
                                         <button type="button" class="remove-column button">Remove</button>
                                     </div>
-                                    <?php
+                            <?php
                                 }
                             }
                             ?>
@@ -95,17 +147,17 @@ function mct_settings_page() {
                     </td>
                 </tr>
             </table>
-            
+
             <?php submit_button(); ?>
         </form>
     </div>
 
     <script>
-    jQuery(document).ready(function($) {
-        let columnCount = <?php echo !empty($saved_columns) ? count($saved_columns) : 0; ?>;
-        
-        $('#add-column').click(function() {
-            const newRow = `
+        jQuery(document).ready(function($) {
+            let columnCount = <?php echo !empty($saved_columns) ? count($saved_columns) : 0; ?>;
+
+            $('#add-column').click(function() {
+                const newRow = `
                 <div class="column-row">
                     <input type="text" name="mct_columns[${columnCount}][header]" placeholder="Column Header">
                     <select name="mct_columns[${columnCount}][type]">
@@ -129,164 +181,223 @@ function mct_settings_page() {
                     <button type="button" class="remove-column button">Remove</button>
                 </div>
             `;
-            $('#column-container').append(newRow);
-            columnCount++;
-        });
+                $('#column-container').append(newRow);
+                columnCount++;
+            });
 
-        $(document).on('click', '.remove-column', function() {
-            $(this).parent().remove();
-        });
+            $(document).on('click', '.remove-column', function() {
+                $(this).parent().remove();
+            });
 
-        $(document).on('change', 'input[name*="[is_hyperlink]"]', function() {
-            $(this).closest('.column-row').find('.url-field').toggle(this.checked);
+            $(document).on('change', 'input[name*="[is_hyperlink]"]', function() {
+                $(this).closest('.column-row').find('.url-field').toggle(this.checked);
+            });
+
+            // Add taxonomy term loading
+            $('#taxonomy-select').on('change', function() {
+                const taxonomy = $(this).val();
+                const termSelect = $('#term-select');
+
+                if (!taxonomy) {
+                    termSelect.html('<option value="">Select Term</option>').prop('disabled', true);
+                    return;
+                }
+
+                $.ajax({
+                    url: ajaxurl,
+                    data: {
+                        action: 'mct_get_taxonomy_terms',
+                        taxonomy: taxonomy,
+                        nonce: '<?php echo wp_create_nonce('mct_get_terms'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            let options = '<option value="">Select Term</option>';
+                            response.data.forEach(function(term) {
+                                options += `<option value="${term.term_id}">${term.name}</option>`;
+                            });
+                            termSelect.html(options).prop('disabled', false);
+                        }
+                    }
+                });
+            });
         });
-    });
     </script>
 
     <style>
-    .column-row {
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .column-row input[type="text"],
-    .column-row select {
-        min-width: 150px;
-    }
-    .column-row input[type="checkbox"] {
-        margin: 0;
-    }
-    .url-field {
-        transition: all 0.3s ease;
-    }
+        .column-row {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .column-row input[type="text"],
+        .column-row select {
+            min-width: 150px;
+        }
+
+        .column-row input[type="checkbox"] {
+            margin: 0;
+        }
+
+        .url-field {
+            transition: all 0.3s ease;
+        }
     </style>
-    <?php
+<?php
 }
 
 // Create shortcode
 add_shortcode('custom_post_table', 'mct_display_table');
-function mct_display_table($atts) {
+function mct_display_table($atts)
+{
     $post_type = get_option('mct_post_type', 'post');
     $columns = get_option('mct_columns', []);
-    
-    $posts = get_posts([
+    $taxonomy = get_option('mct_taxonomy');
+    $term_id = get_option('mct_taxonomy_term');
+
+    $args = [
         'post_type' => $post_type,
         'numberposts' => -1,
-    ]);
+    ];
+
+    // Add taxonomy query if both taxonomy and term are selected
+    if (!empty($taxonomy) && !empty($term_id)) {
+        $args['tax_query'] = [
+            [
+                'taxonomy' => $taxonomy,
+                'field' => 'term_id',
+                'terms' => $term_id
+            ]
+        ];
+    }
+
+    $posts = get_posts($args);
 
     ob_start();
-    ?>
+?>
     <style>
-    .mct-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-    }
-    .mct-table th {
-        background: #f8f9fa;
-        padding: 12px;
-        text-align: left;
-        font-weight: 600;
-        border-bottom: 2px solid #dee2e6;
-    }
-    .mct-table td {
-        padding: 12px;
-        border-bottom: 1px solid #dee2e6;
-    }
-    .mct-table tbody tr:nth-child(even) {
-        background-color: #f8f9fa;
-    }
-    .mct-table tr:hover {
-        background-color: #f2f2f2;
-    }
-    
-    .mct-table th {
-        cursor: pointer;
-        user-select: none;
-        position: relative;
-    }
-    
-    .mct-table th::after {
-        content: '↕';
-        position: absolute;
-        right: 8px;
-        opacity: 0.3;
-    }
-    
-    .mct-table th.sort-asc::after {
-        content: '↑';
-        opacity: 1;
-    }
-    
-    .mct-table th.sort-desc::after {
-        content: '↓';
-        opacity: 1;
-    }
-    .mct-table .mct-align-left {
-        text-align: left;
-    }
-    .mct-table .mct-align-center {
-        text-align: center;
-    }
-    .mct-table .mct-align-right {
-        text-align: right;
-    }
-    
-    /* Mobile Responsive Styles */
-    @media screen and (max-width: 768px) {
         .mct-table {
-            display: block;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            -ms-overflow-style: -ms-autohiding-scrollbar;
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
         }
-        
-        /* Optional: Card view for very small screens */
-        @media screen and (max-width: 480px) {
-            .mct-table, .mct-table tbody, .mct-table tr, .mct-table td {
+
+        .mct-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .mct-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .mct-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .mct-table tr:hover {
+            background-color: #f2f2f2;
+        }
+
+        .mct-table th {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .mct-table th::after {
+            content: '↕';
+            position: absolute;
+            right: 8px;
+            opacity: 0.3;
+        }
+
+        .mct-table th.sort-asc::after {
+            content: '↑';
+            opacity: 1;
+        }
+
+        .mct-table th.sort-desc::after {
+            content: '↓';
+            opacity: 1;
+        }
+
+        .mct-table .mct-align-left {
+            text-align: left;
+        }
+
+        .mct-table .mct-align-center {
+            text-align: center;
+        }
+
+        .mct-table .mct-align-right {
+            text-align: right;
+        }
+
+        /* Mobile Responsive Styles */
+        @media screen and (max-width: 768px) {
+            .mct-table {
                 display: block;
-                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                -ms-overflow-style: -ms-autohiding-scrollbar;
             }
-            
-            .mct-table thead {
-                display: none;
-            }
-            
-            .mct-table tr {
-                margin-bottom: 1rem;
-                border: 1px solid #dee2e6;
-                padding: 0.5rem;
-            }
-            
-            .mct-table td {
-                text-align: right;
-                padding: 8px;
-                position: relative;
-                border-bottom: 1px solid #eee;
-            }
-            
-            .mct-table td:last-child {
-                border-bottom: none;
-            }
-            
-            .mct-table td::before {
-                content: attr(data-label);
-                float: left;
-                font-weight: bold;
-                text-transform: uppercase;
-                font-size: 0.85em;
-            }
-            
-            /* Override alignment classes for mobile */
-            .mct-table .mct-align-left,
-            .mct-table .mct-align-center,
-            .mct-table .mct-align-right {
-                text-align: right;
+
+            /* Optional: Card view for very small screens */
+            @media screen and (max-width: 480px) {
+
+                .mct-table,
+                .mct-table tbody,
+                .mct-table tr,
+                .mct-table td {
+                    display: block;
+                    width: 100%;
+                }
+
+                .mct-table thead {
+                    display: none;
+                }
+
+                .mct-table tr {
+                    margin-bottom: 1rem;
+                    border: 1px solid #dee2e6;
+                    padding: 0.5rem;
+                }
+
+                .mct-table td {
+                    text-align: right;
+                    padding: 8px;
+                    position: relative;
+                    border-bottom: 1px solid #eee;
+                }
+
+                .mct-table td:last-child {
+                    border-bottom: none;
+                }
+
+                .mct-table td::before {
+                    content: attr(data-label);
+                    float: left;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    font-size: 0.85em;
+                }
+
+                /* Override alignment classes for mobile */
+                .mct-table .mct-align-left,
+                .mct-table .mct-align-center,
+                .mct-table .mct-align-right {
+                    text-align: right;
+                }
             }
         }
-    }
     </style>
 
     <table class="mct-table">
@@ -303,7 +414,7 @@ function mct_display_table($atts) {
             <?php foreach ($posts as $post): ?>
                 <tr>
                     <?php foreach ($columns as $column): ?>
-                        <td class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>" 
+                        <td class="mct-align-<?php echo esc_attr($column['align'] ?? 'left'); ?>"
                             data-label="<?php echo esc_attr($column['header']); ?>">
                             <?php
                             switch ($column['type']) {
@@ -343,81 +454,106 @@ function mct_display_table($atts) {
     </table>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const tables = document.querySelectorAll('.mct-table');
-        
-        tables.forEach(table => {
-            const headers = table.querySelectorAll('th');
-            let currentSort = { column: null, direction: 'asc' };
-            
-            headers.forEach((header, columnIndex) => {
-                // Store the column index as a data attribute
-                header.dataset.columnIndex = columnIndex;
-                
-                header.addEventListener('click', () => {
-                    const tbody = table.querySelector('tbody');
-                    const rows = Array.from(tbody.querySelectorAll('tr'));
-                    
-                    // Reset all headers
-                    headers.forEach(h => {
-                        h.classList.remove('sort-asc', 'sort-desc');
-                    });
-                    
-                    // Determine sort direction
-                    if (currentSort.column === columnIndex) {
-                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        currentSort.column = columnIndex;
-                        currentSort.direction = 'asc';
-                    }
-                    
-                    // Add sort indicator
-                    header.classList.add(`sort-${currentSort.direction}`);
-                    
-                    // Sort rows
-                    const sortedRows = rows.sort((a, b) => {
-                        // Get cells for this column, handling both desktop and mobile layouts
-                        const aCell = a.querySelectorAll('td')[columnIndex];
-                        const bCell = b.querySelectorAll('td')[columnIndex];
-                        
-                        if (!aCell || !bCell) return 0;
-                        
-                        const aValue = aCell.textContent.trim();
-                        const bValue = bCell.textContent.trim();
-                        
-                        // Check if values are dates
-                        const aDate = new Date(aValue);
-                        const bDate = new Date(bValue);
-                        if (aDate instanceof Date && !isNaN(aDate) && 
-                            bDate instanceof Date && !isNaN(bDate)) {
-                            return currentSort.direction === 'asc' 
-                                ? aDate - bDate 
-                                : bDate - aDate;
+        document.addEventListener('DOMContentLoaded', function() {
+            const tables = document.querySelectorAll('.mct-table');
+
+            tables.forEach(table => {
+                const headers = table.querySelectorAll('th');
+                let currentSort = {
+                    column: null,
+                    direction: 'asc'
+                };
+
+                headers.forEach((header, columnIndex) => {
+                    // Store the column index as a data attribute
+                    header.dataset.columnIndex = columnIndex;
+
+                    header.addEventListener('click', () => {
+                        const tbody = table.querySelector('tbody');
+                        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+                        // Reset all headers
+                        headers.forEach(h => {
+                            h.classList.remove('sort-asc', 'sort-desc');
+                        });
+
+                        // Determine sort direction
+                        if (currentSort.column === columnIndex) {
+                            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            currentSort.column = columnIndex;
+                            currentSort.direction = 'asc';
                         }
-                        
-                        // Check if values are numbers
-                        const aNum = parseFloat(aValue);
-                        const bNum = parseFloat(bValue);
-                        if (!isNaN(aNum) && !isNaN(bNum)) {
-                            return currentSort.direction === 'asc' 
-                                ? aNum - bNum 
-                                : bNum - aNum;
-                        }
-                        
-                        // Sort as strings
-                        return currentSort.direction === 'asc' 
-                            ? aValue.localeCompare(bValue)
-                            : bValue.localeCompare(aValue);
+
+                        // Add sort indicator
+                        header.classList.add(`sort-${currentSort.direction}`);
+
+                        // Sort rows
+                        const sortedRows = rows.sort((a, b) => {
+                            // Get cells for this column, handling both desktop and mobile layouts
+                            const aCell = a.querySelectorAll('td')[columnIndex];
+                            const bCell = b.querySelectorAll('td')[columnIndex];
+
+                            if (!aCell || !bCell) return 0;
+
+                            const aValue = aCell.textContent.trim();
+                            const bValue = bCell.textContent.trim();
+
+                            // Check if values are dates
+                            const aDate = new Date(aValue);
+                            const bDate = new Date(bValue);
+                            if (aDate instanceof Date && !isNaN(aDate) &&
+                                bDate instanceof Date && !isNaN(bDate)) {
+                                return currentSort.direction === 'asc' ?
+                                    aDate - bDate :
+                                    bDate - aDate;
+                            }
+
+                            // Check if values are numbers
+                            const aNum = parseFloat(aValue);
+                            const bNum = parseFloat(bValue);
+                            if (!isNaN(aNum) && !isNaN(bNum)) {
+                                return currentSort.direction === 'asc' ?
+                                    aNum - bNum :
+                                    bNum - aNum;
+                            }
+
+                            // Sort as strings
+                            return currentSort.direction === 'asc' ?
+                                aValue.localeCompare(bValue) :
+                                bValue.localeCompare(aValue);
+                        });
+
+                        // Clear and re-append sorted rows
+                        tbody.innerHTML = '';
+                        sortedRows.forEach(row => tbody.appendChild(row));
                     });
-                    
-                    // Clear and re-append sorted rows
-                    tbody.innerHTML = '';
-                    sortedRows.forEach(row => tbody.appendChild(row));
                 });
             });
         });
-    });
     </script>
-    <?php
+<?php
     return ob_get_clean();
 }
+
+// Add this function to handle the AJAX request
+function mct_get_taxonomy_terms()
+{
+    check_ajax_referer('mct_get_terms', 'nonce');
+
+    if (!isset($_GET['taxonomy'])) {
+        wp_send_json_error('No taxonomy specified');
+    }
+
+    $terms = get_terms([
+        'taxonomy' => sanitize_text_field($_GET['taxonomy']),
+        'hide_empty' => false,
+    ]);
+
+    if (is_wp_error($terms)) {
+        wp_send_json_error($terms->get_error_message());
+    }
+
+    wp_send_json_success($terms);
+}
+add_action('wp_ajax_mct_get_taxonomy_terms', 'mct_get_taxonomy_terms');
